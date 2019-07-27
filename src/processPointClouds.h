@@ -39,13 +39,14 @@ template <typename PointT>
 struct KdTree
 {
     Node<PointT> *root;
+    const uint   dimensions;
 
-    KdTree()
-        : root(NULL)
+    KdTree(uint dim)
+        : root(NULL), dimensions(dim)
     {
     }
 
-    void insertHelper(Node<PointT> **node, uint depth, PointT point, int id)
+    void insertHelper(Node<PointT> **node, uint depth, PointT& point, int id)
     {
         if (*node == NULL)
         {
@@ -53,88 +54,50 @@ struct KdTree
         }
         else
         {
-            /* current deimesnion at this depth level */
-            uint cd = depth % 3;
-
-            switch(cd)
-            {
-                case 0:
-                    if (point.x < ((*node)->point.x))
-                        insertHelper(&((*node)->left), depth + 1, point, id);
-                    else
-                        insertHelper(&((*node)->right), depth + 1, point, id);
-                    break;
-                case 1:
-                    if (point.y < ((*node)->point.y))
-                        insertHelper(&((*node)->left), depth + 1, point, id);
-                    else
-                        insertHelper(&((*node)->right), depth + 1, point, id);
-                    break;
-                case 2:
-                    if (point.z < ((*node)->point.z))
-                        insertHelper(&((*node)->left), depth + 1, point, id);
-                    else
-                        insertHelper(&((*node)->right), depth + 1, point, id);
-                    break;
-                default:
-                    break;
-            }
+            /* current dimension at this depth level */
+            uint cd = depth % dimensions;
+            if (point.data[cd] < ((*node)->point.data[cd]))
+                insertHelper(&((*node)->left), depth + 1, point, id);
+            else
+                insertHelper(&((*node)->right), depth + 1, point, id);
         }
     }
 
-    void insert(PointT point, int id)
+    void insert(PointT& point, int id)
     {
         insertHelper(&root, 0, point, id);
     }
     // return a list of point ids in the tree that are within distance of target
 
-    void searchHelper(PointT target, Node<PointT> *node, int depth, float distanceTol, std::vector<int> &ids)
+    void searchHelper(PointT& target, Node<PointT> *node, int depth, float distanceTol, std::vector<int> &ids)
     {
-        if (node != NULL)
+        if (node != NULL )
         {
-            if ((node->point.x >= (target.x - distanceTol)) && (node->point.x <= (target.x + distanceTol)) &&
-                (node->point.y >= (target.y - distanceTol)) && (node->point.y <= (target.y + distanceTol)) &&
-                (node->point.z >= (target.z - distanceTol)) && (node->point.z <= (target.z + distanceTol)))
+            if(    ( node->point.x >= (target.x - distanceTol)) && (node->point.x <= (target.x + distanceTol ) )
+                && ( node->point.y >= (target.y - distanceTol)) && (node->point.y <= (target.y + distanceTol ) )
+                && ( node->point.z >= (target.z - distanceTol)) && (node->point.z <= (target.z + distanceTol ) )
+            )
             {
-                float distance = sqrt( (node->point.x - target.x) * (node->point.x - target.x) + 
-                                       (node->point.y - target.y) * (node->point.y - target.y) +
-                                       (node->point.z - target.z) * (node->point.z - target.z) );
+                float distance = sqrt(  pow((node->point.x - target.x), 2)
+                                      + pow((node->point.y - target.y), 2)
+                                      + pow((node->point.z - target.z), 2)
+                                     );
 
                 if (distance <= distanceTol)
-                    ids.push_back(node->id);
+                        ids.push_back(node->id);
             }
             //Check across boundary
             /* current deimesnion at this depth level */
-            uint cd = depth % 3;
-            switch (cd)
-            {
-            case 0:
-                if ((target.x - distanceTol) < node->point.x)
-                    searchHelper(target, node->left, depth + 1, distanceTol, ids);
-                if ((target.x + distanceTol) > node->point.x)
-                    searchHelper(target, node->right, depth + 1, distanceTol, ids);
-                break;
-            case 1:
-                if ((target.y - distanceTol) < node->point.y)
-                    searchHelper(target, node->left, depth + 1, distanceTol, ids);
-                if ((target.y + distanceTol) > node->point.y)
-                    searchHelper(target, node->right, depth + 1, distanceTol, ids);
-                break;
-            case 2:
-                if ((target.z - distanceTol) < node->point.z)
-                    searchHelper(target, node->left, depth + 1, distanceTol, ids);
-                if ((target.z + distanceTol) > node->point.z)
-                    searchHelper(target, node->right, depth + 1, distanceTol, ids);
-                break;
-            default:
-                break;
-            }
+            uint cd = depth % dimensions;
+            if ((target.data[cd] - distanceTol) < node->point.data[cd])
+                searchHelper(target, node->left, depth + 1, distanceTol, ids);
+            if ((target.data[cd]+ distanceTol) > node->point.data[cd])
+                searchHelper(target, node->right, depth + 1, distanceTol, ids);
         }
     }
 
     // return a list of point ids in the tree that are within distance of target
-
-    std::vector<int> search(PointT target, float distanceTol)
+    std::vector<int> search(PointT& target, float distanceTol)
     {
         std::vector<int> ids;
         searchHelper(target, root, 0, distanceTol, ids);
@@ -175,6 +138,6 @@ public:
 
     std::vector<typename pcl::PointCloud<PointT>::Ptr> euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize);
 
-    void clusterHelper(int indice, typename pcl::PointCloud<PointT>::Ptr cloud, std::unordered_set<int> &cluster, std::vector<bool> &processed, KdTree<PointT> *tree, float distanceTol);
+    void clusterHelper(int indice, typename pcl::PointCloud<PointT>::Ptr cloud, std::vector<int> &cluster, std::vector<bool> &processed, KdTree<PointT>* tree, float distanceTol);
 };
 #endif /* PROCESSPOINTCLOUDS_H_ */
